@@ -38,4 +38,4 @@ and then refer to a file with `-u http://10.0.10.1:8080/preseed.cfg`.
 
 ## Limitations
 
-Supports only the x86-64 architecture.
+Supports only the i386 and x86-64 architectures.
