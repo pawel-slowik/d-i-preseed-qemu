@@ -33,7 +33,6 @@ def install(
         "-net", "nic", "-net", "user",
         "-drive", "file=%s" % output_filename,
         "-cdrom", iso_filename,
-        "-boot", "once=d",
         "-append", " ".join("%s=%s" % (name, value) for name, value in [
             ("auto", "true"),
             ("priority", "critical"),
