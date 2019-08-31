@@ -30,6 +30,8 @@ def install(
             return "qemu-system-x86_64"
         if "i386" in iso_filename:
             return "qemu-system-i386"
+        if "arm64" in iso_filename:
+            return "qemu-system-aarch64"
         raise ValueError("unsupported architecture: %s" % iso_filename)
 
     iso_kernel, iso_initrd = iso_find_bootfiles(iso_filename)
@@ -37,11 +39,7 @@ def install(
     tmp_initrd = named_tmp(iso_extract_file(iso_filename, iso_initrd))
     command = [
         get_command_for_arch(iso_filename),
-        "-enable-kvm", "-accel", "kvm",
         "-cpu", "max", "-m", "1G",
-        "-net", "nic", "-net", "user",
-        "-drive", "file=%s" % output_filename,
-        "-cdrom", iso_filename,
         "-append", " ".join("%s=%s" % (name, value) for name, value in [
             ("auto", "true"),
             ("priority", "critical"),
@@ -52,6 +50,24 @@ def install(
         "-display", "vnc=%s" % vnc_display if vnc_display else "none",
         "-no-reboot",
     ]
+    if iso_is_arm(iso_filename):
+        command += [
+            "-M", "virt",
+            "-drive", "if=none,file=%s,format=qcow2,id=hd" % output_filename,
+            "-device", "virtio-blk-pci,drive=hd",
+            "-drive", "if=none,file=%s,id=cdrom,media=cdrom" % iso_filename,
+            "-device", "virtio-scsi-device",
+            "-device", "scsi-cd,drive=cdrom",
+            "-netdev", "user,id=mynet",
+            "-device", "virtio-net-pci,netdev=mynet",
+        ]
+    else:
+        command += [
+            "-enable-kvm", "-accel", "kvm",
+            "-drive", "file=%s" % output_filename,
+            "-cdrom", iso_filename,
+            "-net", "nic", "-net", "user",
+        ]
     subprocess.run(command, check=True)
 
 def iso_find_bootfiles(iso_filename: str) -> Tuple[str, str]:
@@ -273,6 +289,10 @@ def parse_symlink_target(debugfs_output: str) -> str:
         raise ValueError("can't parse symlink target")
     return split_to_unquote[0]
 
+def iso_is_arm(iso_filename: str) -> bool:
+    """Does the installation ISO image correspond to an ARM architecture?"""
+    return "arm64" in iso_filename or "armel" in iso_filename or "armhf" in iso_filename
+
 def named_tmp(content: bytes) -> IO:
     """Create a named temporary file with given content."""
     script_base = os.path.splitext(os.path.basename(sys.argv[0]))[0]
@@ -293,6 +313,8 @@ def main() -> None:
     args = parser.parse_args()
     create_image(args.output_filename, args.image_size)
     install(args.iso_filename, args.preseed_url, args.output_filename, args.vnc_display)
+    if iso_is_arm(args.iso_filename):
+        extract_boot_files(args.output_filename)
 
 if __name__ == "__main__":
     main()
