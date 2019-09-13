@@ -34,7 +34,7 @@ def install(
             return "qemu-system-aarch64"
         raise ValueError("unsupported architecture: %s" % iso_filename)
 
-    iso_kernel, iso_initrd = iso_find_bootfiles(iso_filename)
+    iso_kernel, iso_initrd = iso_get_boot_filenames(iso_filename)
     tmp_kernel = named_tmp(iso_extract_file(iso_filename, iso_kernel))
     tmp_initrd = named_tmp(iso_extract_file(iso_filename, iso_initrd))
     command = [
@@ -70,37 +70,37 @@ def install(
         ]
     subprocess.run(command, check=True)
 
-def iso_find_bootfiles(iso_filename: str) -> Tuple[str, str]:
-    """Find the Debian installer kernel and initrd in an ISO image. Return filenames."""
-    kernel_regexp = r"^/install([^/]*)/vmlinuz$"
-    initrd_regexp = r"^/install([^/]*)/initrd\.gz$"
-    command = ["isoinfo", "-f", "-R", "-i", iso_filename]
-    process = subprocess.run(command, capture_output=True, check=True, text=True)
-    kernel_lines_found = []
-    initrd_lines_found = []
-    arch_suffixes_found = set()
-    for line in process.stdout.split("\n"):
-        match = re.search(kernel_regexp, line)
-        if match:
-            kernel_lines_found.append(line)
-            arch_suffixes_found.add(match.group(1))
-            continue
-        match = re.search(initrd_regexp, line)
-        if match:
-            initrd_lines_found.append(line)
-            arch_suffixes_found.add(match.group(1))
-            continue
-    if not kernel_lines_found:
-        raise ValueError("kernel not found: %s, %s" % (iso_filename, kernel_regexp))
-    if not initrd_lines_found:
-        raise ValueError("initrd not found: %s, %s" % (iso_filename, initrd_regexp))
-    if len(kernel_lines_found) > 1:
-        raise ValueError("multiple kernels found: %s, %s" % (iso_filename, kernel_lines_found))
-    if len(initrd_lines_found) > 1:
-        raise ValueError("multiple initrds found: %s, %s" % (iso_filename, initrd_lines_found))
-    if len(arch_suffixes_found) != 1:
-        raise ValueError("mixed architectures: %s, %s" % (iso_filename, arch_suffixes_found))
-    return kernel_lines_found[0], initrd_lines_found[0]
+def iso_get_boot_filenames(iso_filename: str) -> Tuple[str, str]:
+    """Get the paths of the Debian installer kernel and initrd files for an ISO image."""
+    va_path_map = {
+        (9, "i386"): ("/install.386/vmlinuz", "/install.386/initrd.gz"),
+        (9, "amd64"): ("/install.amd/vmlinuz", "/install.amd/initrd.gz"),
+        (9, "arm64"): ("/install.a64/vmlinuz", "/install.a64/initrd.gz"),
+        (10, "i386"): ("/install.386/vmlinuz", "/install.386/initrd.gz"),
+        (10, "amd64"): ("/install.amd/vmlinuz", "/install.amd/initrd.gz"),
+        (10, "arm64"): ("/install.a64/vmlinuz", "/install.a64/initrd.gz"),
+    }
+    version = get_debian_version(iso_filename)
+    arch = get_debian_architecture(iso_filename)
+    if (version, arch) in va_path_map:
+        return va_path_map[(version, arch)]
+    raise ValueError("unsupported Debian version or architecture: %s, %s" % (version, arch))
+
+def get_debian_version(iso_filename: str) -> int:
+    """Get the major Debian version for a ISO filename."""
+    iso_filename = os.path.basename(iso_filename)
+    match = re.search(r"^debian-([0-9]+)\.[0-9]+\.[0-9]+-", iso_filename)
+    if not match:
+        raise ValueError("can't read Debian version: %s" % iso_filename)
+    return int(match.group(1))
+
+def get_debian_architecture(iso_filename: str) -> str:
+    """Get the Debian architecture for a ISO filename."""
+    iso_filename = os.path.basename(iso_filename)
+    match = re.search(r"^debian-[0-9.]+-([^-]+)-", iso_filename)
+    if not match:
+        raise ValueError("can't read Debian architecture: %s" % iso_filename)
+    return match.group(1)
 
 def iso_extract_file(iso_filename: str, extract_filename: str) -> bytes:
     """Extract a file from an ISO image and return its contents."""
