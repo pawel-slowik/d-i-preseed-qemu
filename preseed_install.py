@@ -291,7 +291,7 @@ def parse_symlink_target(debugfs_output: str) -> str:
 
 def iso_is_arm(iso_filename: str) -> bool:
     """Does the installation ISO image correspond to an ARM architecture?"""
-    return "arm64" in iso_filename or "armel" in iso_filename or "armhf" in iso_filename
+    return get_debian_architecture(iso_filename) in ("arm64", "armel", "armhf")
 
 def named_tmp(content: bytes) -> IO:
     """Create a named temporary file with given content."""
