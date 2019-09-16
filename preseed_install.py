@@ -24,21 +24,19 @@ def install(
         vnc_display: Optional[str] = None,
     ) -> None:
     """Perform automated Debian installation from an ISO image into a QEMU disk image."""
-
-    def get_command_for_arch(iso_filename: str) -> str:
-        if "amd64" in iso_filename:
-            return "qemu-system-x86_64"
-        if "i386" in iso_filename:
-            return "qemu-system-i386"
-        if "arm64" in iso_filename:
-            return "qemu-system-aarch64"
-        raise ValueError("unsupported architecture: %s" % iso_filename)
-
+    arch_qemu_map = {
+        "amd64": "qemu-system-x86_64",
+        "i386": "qemu-system-i386",
+        "arm64": "qemu-system-aarch64",
+    }
+    arch = get_debian_architecture(iso_filename)
+    if arch not in arch_qemu_map:
+        raise ValueError("unsupported architecture: %s" % arch)
     iso_kernel, iso_initrd = iso_get_boot_filenames(iso_filename)
     tmp_kernel = named_tmp(iso_extract_file(iso_filename, iso_kernel))
     tmp_initrd = named_tmp(iso_extract_file(iso_filename, iso_initrd))
     command = [
-        get_command_for_arch(iso_filename),
+        arch_qemu_map[arch],
         "-cpu", "max", "-m", "1G",
         "-append", " ".join("%s=%s" % (name, value) for name, value in [
             ("auto", "true"),
