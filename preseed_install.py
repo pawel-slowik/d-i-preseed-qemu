@@ -28,6 +28,7 @@ def install(
         "amd64": "qemu-system-x86_64",
         "i386": "qemu-system-i386",
         "arm64": "qemu-system-aarch64",
+        "armhf": "qemu-system-arm",
     }
     arch = get_debian_architecture(iso_filename)
     if arch not in arch_qemu_map:
@@ -49,15 +50,16 @@ def install(
         "-no-reboot",
     ]
     if iso_is_arm(iso_filename):
+        virtio_type = "pci" if arch == "arm64" else "device"
         command += [
             "-M", "virt",
             "-drive", "if=none,file=%s,format=qcow2,id=hd" % output_filename,
-            "-device", "virtio-blk-pci,drive=hd",
+            "-device", "virtio-blk-%s,drive=hd" % virtio_type,
             "-drive", "if=none,file=%s,id=cdrom,media=cdrom" % iso_filename,
             "-device", "virtio-scsi-device",
             "-device", "scsi-cd,drive=cdrom",
             "-netdev", "user,id=mynet",
-            "-device", "virtio-net-pci,netdev=mynet",
+            "-device", "virtio-net-%s,netdev=mynet" % virtio_type,
         ]
     else:
         command += [
@@ -77,6 +79,7 @@ def iso_get_boot_filenames(iso_filename: str) -> Tuple[str, str]:
         (10, "i386"): ("/install.386/vmlinuz", "/install.386/initrd.gz"),
         (10, "amd64"): ("/install.amd/vmlinuz", "/install.amd/initrd.gz"),
         (10, "arm64"): ("/install.a64/vmlinuz", "/install.a64/initrd.gz"),
+        (10, "armhf"): ("/install.ahf/cdrom/vmlinuz", "/install.ahf/cdrom/initrd.gz"),
     }
     version = get_debian_version(iso_filename)
     arch = get_debian_architecture(iso_filename)
