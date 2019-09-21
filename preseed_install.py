@@ -2,7 +2,9 @@
 """A QEMU wrapper for performing automated Debian installations in QEMU virtual machines."""
 
 import sys
+import os
 import os.path
+import shutil
 import subprocess
 import re
 import tempfile
@@ -55,12 +57,26 @@ def install(
             "-M", "virt",
             "-drive", "if=none,file=%s,format=qcow2,id=hd" % output_filename,
             "-device", "virtio-blk-%s,drive=hd" % virtio_type,
-            "-drive", "if=none,file=%s,id=cdrom,media=cdrom" % iso_filename,
-            "-device", "virtio-scsi-device",
-            "-device", "scsi-cd,drive=cdrom",
             "-netdev", "user,id=mynet",
             "-device", "virtio-net-%s,netdev=mynet" % virtio_type,
         ]
+        if arch == "armhf" and get_debian_version(iso_filename) == 9:
+            # Can't install from a CD-ROM. Therefore, put the ISO in a hard
+            # disk image and use the hd-media installer. Set the disk up using
+            # the SCSI driver instead of virtio in order to make it easy to
+            # tell the source and destination disks apart.
+            installer_hd = create_installer_hd(iso_filename)
+            command += [
+                "-drive", "if=none,file=%s,id=installer_hd,format=raw" % installer_hd.name,
+                "-device", "virtio-scsi-device",
+                "-device", "scsi-hd,drive=installer_hd",
+            ]
+        else:
+            command += [
+                "-drive", "if=none,file=%s,id=cdrom,media=cdrom" % iso_filename,
+                "-device", "virtio-scsi-device",
+                "-device", "scsi-cd,drive=cdrom",
+            ]
     else:
         command += [
             "-enable-kvm", "-accel", "kvm",
@@ -76,6 +92,7 @@ def iso_get_boot_filenames(iso_filename: str) -> Tuple[str, str]:
         (9, "i386"): ("/install.386/vmlinuz", "/install.386/initrd.gz"),
         (9, "amd64"): ("/install.amd/vmlinuz", "/install.amd/initrd.gz"),
         (9, "arm64"): ("/install.a64/vmlinuz", "/install.a64/initrd.gz"),
+        (9, "armhf"): ("/install/hd-media/vmlinuz", "/install/hd-media/initrd.gz"),
         (10, "i386"): ("/install.386/vmlinuz", "/install.386/initrd.gz"),
         (10, "amd64"): ("/install.amd/vmlinuz", "/install.amd/initrd.gz"),
         (10, "arm64"): ("/install.a64/vmlinuz", "/install.a64/initrd.gz"),
@@ -114,6 +131,41 @@ def iso_extract_file(iso_filename: str, extract_filename: str) -> bytes:
             % (extract_filename, iso_filename)
         )
     return extracted
+
+def create_installer_hd(iso_filename: str) -> IO:
+    """Create a hard disk image containing the installation ISO."""
+
+    def calculate_fs_size(iso_size: int) -> int:
+        fs_size = int(round(iso_size * 1.1))
+        leftover = fs_size % 4096
+        return fs_size if not leftover else fs_size + 4096 - leftover
+
+    header_size = 2048 * 512
+    fs_size = calculate_fs_size(os.stat(iso_filename).st_size)
+    fs_image = named_tmp(b"")
+    fs_image.truncate(fs_size)
+    subprocess.run(["/sbin/mkfs.ext2", fs_image.name], check=True)
+    fs_iso_filename = os.path.basename(iso_filename)
+    debugfs_command(fs_image.name, "write %s %s" % (iso_filename, fs_iso_filename))
+    disk_size = fs_size + header_size
+    disk_image = named_tmp(b"")
+    disk_image.truncate(disk_size)
+    sfdisk_script = "label: dos\n,,L\nwrite\n"
+    sfdisk_cmd = ["/sbin/sfdisk", disk_image.name]
+    process = subprocess.Popen(
+        sfdisk_cmd,
+        universal_newlines=True,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    stdout, stderr = process.communicate(sfdisk_script)
+    if process.returncode != 0:
+        raise subprocess.CalledProcessError(process.returncode, sfdisk_cmd, stdout, stderr)
+    fs_image.seek(0)
+    disk_image.seek(header_size)
+    shutil.copyfileobj(fs_image, disk_image)
+    return disk_image
 
 def create_image(filename: str, size: str) -> None:
     """Create a QEMU disk image. Will not overwrite an existing file."""
@@ -266,7 +318,7 @@ def debugfs_command(partition_filename: str, command: str) -> str:
     """Run a debugfs command."""
     if not os.path.exists(partition_filename):
         raise ValueError("file not found: %s" % partition_filename)
-    cmd = ["/sbin/debugfs", "-f", "-", partition_filename]
+    cmd = ["/sbin/debugfs", "-w", "-f", "-", partition_filename]
     process = subprocess.Popen(
         cmd,
         universal_newlines=True,

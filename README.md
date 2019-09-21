@@ -16,7 +16,7 @@ Clone this repository and run the script from there.
 
 - Python 3.x
 - QEMU
-- `isoinfo`, `dd`, `fdisk`, `debugfs`
+- `isoinfo`, `dd`, `fdisk`, `sfdisk`, `mkfs.ext2`, `debugfs`
 
 Install all the requirements on Debian 10 / buster with:
 
