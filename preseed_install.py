@@ -19,6 +19,7 @@ Partition = NamedTuple("Partition", [
     ("bootable", bool),
 ])
 
+
 def install(
         iso_filename: str,
         preseed_url: str,
@@ -86,6 +87,7 @@ def install(
         ]
     subprocess.run(command, check=True)
 
+
 def iso_get_boot_filenames(iso_filename: str) -> Tuple[str, str]:
     """Get the paths of the Debian installer kernel and initrd files for an ISO image."""
     va_path_map = {
@@ -104,6 +106,7 @@ def iso_get_boot_filenames(iso_filename: str) -> Tuple[str, str]:
         return va_path_map[(version, arch)]
     raise ValueError("unsupported Debian version or architecture: %s, %s" % (version, arch))
 
+
 def get_debian_version(iso_filename: str) -> int:
     """Get the major Debian version for a ISO filename."""
     iso_filename = os.path.basename(iso_filename)
@@ -112,6 +115,7 @@ def get_debian_version(iso_filename: str) -> int:
         raise ValueError("can't read Debian version: %s" % iso_filename)
     return int(match.group(1))
 
+
 def get_debian_architecture(iso_filename: str) -> str:
     """Get the Debian architecture for a ISO filename."""
     iso_filename = os.path.basename(iso_filename)
@@ -119,6 +123,7 @@ def get_debian_architecture(iso_filename: str) -> str:
     if not match:
         raise ValueError("can't read Debian architecture: %s" % iso_filename)
     return match.group(1)
+
 
 def iso_extract_file(iso_filename: str, extract_filename: str) -> bytes:
     """Extract a file from an ISO image and return its contents."""
@@ -131,6 +136,7 @@ def iso_extract_file(iso_filename: str, extract_filename: str) -> bytes:
             % (extract_filename, iso_filename)
         )
     return extracted
+
 
 def create_installer_hd(iso_filename: str) -> IO:
     """Create a hard disk image containing the installation ISO."""
@@ -167,12 +173,14 @@ def create_installer_hd(iso_filename: str) -> IO:
     shutil.copyfileobj(fs_image, disk_image)
     return disk_image
 
+
 def create_image(filename: str, size: str) -> None:
     """Create a QEMU disk image. Will not overwrite an existing file."""
     if os.path.exists(filename):
         raise ValueError("already exists: %s" % filename)
     command = ["qemu-img", "create", "-f", "qcow2", filename, size]
     subprocess.run(command, check=True)
+
 
 def extract_boot_files(image_filename: str) -> None:
     """Extract the Linux kernel and initrd files from a QEMU VM image.
@@ -193,6 +201,7 @@ def extract_boot_files(image_filename: str) -> None:
         extract_boot_partition(raw_filename, partition_filename)
         extract_partition_boot_files(partition_filename, kernel_filename, initrd_filename)
 
+
 def image_to_raw(input_filename: str, output_filename: str) -> None:
     """Convert a QEMU disk image to raw format.
 
@@ -203,6 +212,7 @@ def image_to_raw(input_filename: str, output_filename: str) -> None:
         raise ValueError("already exists: %s" % output_filename)
     command = ["qemu-img", "convert", "-O", "raw", input_filename, output_filename]
     subprocess.run(command, check=True)
+
 
 def extract_boot_partition(image_filename: str, output_filename: str) -> None:
     """Extract the first bootable Linux partition from a disk image file.
@@ -227,6 +237,7 @@ def extract_boot_partition(image_filename: str, output_filename: str) -> None:
             subprocess.run(command, check=True, stderr=subprocess.DEVNULL)
             return
     raise ValueError("no bootable Linux partition found")
+
 
 def list_partitions(image_filename: str) -> Iterable[Partition]:
     """List partitions in a disk image.
@@ -263,7 +274,7 @@ def list_partitions(image_filename: str) -> Iterable[Partition]:
             if not match:
                 raise ValueError("unable to parse partition line: %s" % line)
             parsed = {
-                header: postprocessors[header](value) # type: ignore
+                header: postprocessors[header](value)  # type: ignore
                 for header, value in match.groupdict().items()
             }
             yield Partition(
@@ -274,6 +285,7 @@ def list_partitions(image_filename: str) -> Iterable[Partition]:
                 bootable=parsed["Boot"],
             )
 
+
 def parse_fdisk_units(fdisk_output: str) -> int:
     """Parse unit size in bytes from fdisk output."""
     regexp = r"^Units: sectors of [0-9]+ \* [0-9]+ = ([0-9]+) bytes$"
@@ -281,6 +293,7 @@ def parse_fdisk_units(fdisk_output: str) -> int:
     if not match:
         raise ValueError("can't parse partition table units")
     return int(match.group(1))
+
 
 def parse_fdisk_sector_size(fdisk_output: str) -> int:
     """Parse sector size in bytes from fdisk output."""
@@ -294,6 +307,7 @@ def parse_fdisk_sector_size(fdisk_output: str) -> int:
             % (match.group(1), match.group(2))
         )
     return int(match.group(1))
+
 
 def extract_partition_boot_files(
         partition_filename: str,
@@ -314,6 +328,7 @@ def extract_partition_boot_files(
     debugfs_command(partition_filename, "dump %s %s" % (kernel, output_kernel_filename))
     debugfs_command(partition_filename, "dump %s %s" % (initrd, output_initrd_filename))
 
+
 def debugfs_command(partition_filename: str, command: str) -> str:
     """Run a debugfs command."""
     if not os.path.exists(partition_filename):
@@ -331,6 +346,7 @@ def debugfs_command(partition_filename: str, command: str) -> str:
         raise subprocess.CalledProcessError(process.returncode, cmd, stdout, stderr)
     return stdout
 
+
 def parse_symlink_target(debugfs_output: str) -> str:
     """Extract symlink target from debugfs stat command output."""
     regexp = "^Fast link dest: (\".+\")$"
@@ -342,9 +358,11 @@ def parse_symlink_target(debugfs_output: str) -> str:
         raise ValueError("can't parse symlink target")
     return split_to_unquote[0]
 
+
 def iso_is_arm(iso_filename: str) -> bool:
     """Does the installation ISO image correspond to an ARM architecture?"""
     return get_debian_architecture(iso_filename) in ("arm64", "armel", "armhf")
+
 
 def named_tmp(content: bytes) -> IO:
     """Create a named temporary file with given content."""
@@ -352,6 +370,7 @@ def named_tmp(content: bytes) -> IO:
     tmp_file = tempfile.NamedTemporaryFile(prefix=script_base + ".")
     tmp_file.write(content)
     return tmp_file
+
 
 def main() -> None:
     """Simple CLI for the module."""
@@ -368,6 +387,7 @@ def main() -> None:
     install(args.iso_filename, args.preseed_url, args.output_filename, args.vnc_display)
     if iso_is_arm(args.iso_filename):
         extract_boot_files(args.output_filename)
+
 
 if __name__ == "__main__":
     main()
