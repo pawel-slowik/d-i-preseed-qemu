@@ -80,7 +80,7 @@ def install(
             ]
     else:
         command += [
-            "-enable-kvm", "-accel", "kvm",
+            "-accel", "kvm",
             "-drive", "file=%s" % output_filename,
             "-cdrom", iso_filename,
             "-net", "nic", "-net", "user",
