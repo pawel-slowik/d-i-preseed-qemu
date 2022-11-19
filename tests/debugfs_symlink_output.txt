@@ -1,0 +1,14 @@
+debugfs: stat /vmlinuz
+Inode: 5287   Type: symlink    Mode:  0777   Flags: 0x0
+Generation: 3647805499    Version: 0x00000000:00000001
+User:     0   Group:     0   Project:     0   Size: 28
+File ACL: 0
+Links: 1   Blockcount: 0
+Fragment:  Address: 0    Number: 0    Size: 0
+ ctime: 0x608ef603:90013c00 -- Sun May  2 20:57:07 2021
+ atime: 0x608ef603:90013c00 -- Sun May  2 20:57:07 2021
+ mtime: 0x608ef603:90013c00 -- Sun May  2 20:57:07 2021
+crtime: 0x608ef603:90013c00 -- Sun May  2 20:57:07 2021
+Size of extra inode fields: 32
+Inode checksum: 0xed030e64
+Fast link dest: "boot/vmlinuz-4.19.0-16-amd64"

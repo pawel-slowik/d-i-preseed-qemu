@@ -1,0 +1,11 @@
+Disk test.raw: 10 GiB, 10737418240 bytes, 20971520 sectors
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 1024 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disklabel type: dos
+Disk identifier: 0x301abb3d
+
+Type                    Start  Sectors Boot
+Linux                    2048 18968576 *
+Extended             18972670  1996802 
+Linux swap / Solaris 18972672  1996800 
