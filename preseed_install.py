@@ -9,6 +9,7 @@ import subprocess
 import re
 import tempfile
 import shlex
+import argparse
 from typing import Tuple, NamedTuple, Iterable, IO, Optional
 
 Partition = NamedTuple("Partition", [
@@ -375,8 +376,6 @@ def named_tmp(content: bytes) -> IO:
 
 def main() -> None:
     """Simple CLI for the module."""
-    import argparse
-
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", dest="iso_filename", required=True, help="ISO filename")
     parser.add_argument("-u", dest="preseed_url", required=True, help="preseed URL")
