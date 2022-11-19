@@ -106,7 +106,7 @@ def iso_get_boot_filenames(iso_filename: str) -> Tuple[str, str]:
     arch = get_debian_architecture(iso_filename)
     if (version, arch) in va_path_map:
         return va_path_map[(version, arch)]
-    raise ValueError("unsupported Debian version or architecture: %s, %s" % (version, arch))
+    raise ValueError(f"unsupported Debian version or architecture: {version}, {arch}")
 
 
 def get_debian_version(iso_filename: str) -> int:
@@ -114,7 +114,7 @@ def get_debian_version(iso_filename: str) -> int:
     iso_filename = os.path.basename(iso_filename)
     match = re.search(r"^debian-([0-9]+)\.[0-9]+\.[0-9]+-", iso_filename)
     if not match:
-        raise ValueError("can't read Debian version: %s" % iso_filename)
+        raise ValueError(f"can't read Debian version: {iso_filename}")
     return int(match.group(1))
 
 
@@ -123,7 +123,7 @@ def get_debian_architecture(iso_filename: str) -> str:
     iso_filename = os.path.basename(iso_filename)
     match = re.search(r"^debian-[0-9.]+-([^-]+)-", iso_filename)
     if not match:
-        raise ValueError("can't read Debian architecture: %s" % iso_filename)
+        raise ValueError(f"can't read Debian architecture: {iso_filename}")
     return match.group(1)
 
 
@@ -134,8 +134,7 @@ def iso_extract_file(iso_filename: str, extract_filename: str) -> bytes:
     extracted: bytes = process.stdout
     if not extracted:
         raise ValueError(
-            "failed to extract file: %s from ISO: %s"
-            % (extract_filename, iso_filename)
+            f"failed to extract file: {extract_filename} from ISO: {iso_filename}"
         )
     return extracted
 
