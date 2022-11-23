@@ -302,12 +302,13 @@ def parse_fdisk_sector_size(fdisk_output: str) -> int:
     match = re.search(regexp, fdisk_output, re.MULTILINE)
     if not match:
         raise ValueError("can't parse partition table sector size")
-    if match.group(1) != match.group(2):
+    logical = match.group(1)
+    physical = match.group(2)
+    if logical != physical:
         raise ValueError(
-            "partition table logical and physical sector sizes differ: %s != %s"
-            % (match.group(1), match.group(2))
+            f"partition table logical and physical sector sizes differ: {logical} != {physical}"
         )
-    return int(match.group(1))
+    return int(logical)
 
 
 def extract_partition_boot_files(
