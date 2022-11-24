@@ -36,31 +36,31 @@ def install(
     }
     arch = get_debian_architecture(iso_filename)
     if arch not in arch_qemu_map:
-        raise ValueError("unsupported architecture: %s" % arch)
+        raise ValueError(f"unsupported architecture: {arch}")
     iso_kernel, iso_initrd = iso_get_boot_filenames(iso_filename)
     tmp_kernel = named_tmp(iso_extract_file(iso_filename, iso_kernel))
     tmp_initrd = named_tmp(iso_extract_file(iso_filename, iso_initrd))
     command = [
         arch_qemu_map[arch],
         "-cpu", "max", "-m", "1G",
-        "-append", " ".join("%s=%s" % (name, value) for name, value in [
+        "-append", " ".join(f"{name}={value}" for name, value in [
             ("auto", "true"),
             ("priority", "critical"),
             ("url", preseed_url),
         ]),
         "-kernel", tmp_kernel.name,
         "-initrd", tmp_initrd.name,
-        "-display", "vnc=%s" % vnc_display if vnc_display else "none",
+        "-display", f"vnc={vnc_display}" if vnc_display else "none",
         "-no-reboot",
     ]
     if iso_is_arm(iso_filename):
         virtio_type = "pci" if arch == "arm64" else "device"
         command += [
             "-M", "virt",
-            "-drive", "if=none,file=%s,format=qcow2,id=hd" % output_filename,
-            "-device", "virtio-blk-%s,drive=hd" % virtio_type,
+            "-drive", f"if=none,file={output_filename},format=qcow2,id=hd",
+            "-device", f"virtio-blk-{virtio_type},drive=hd",
             "-netdev", "user,id=mynet",
-            "-device", "virtio-net-%s,netdev=mynet" % virtio_type,
+            "-device", f"virtio-net-{virtio_type},netdev=mynet",
         ]
         if arch == "armhf" and get_debian_version(iso_filename) == 9:
             # Can't install from a CD-ROM. Therefore, put the ISO in a hard
@@ -69,20 +69,20 @@ def install(
             # tell the source and destination disks apart.
             installer_hd = create_installer_hd(iso_filename)
             command += [
-                "-drive", "if=none,file=%s,id=installer_hd,format=raw" % installer_hd.name,
+                "-drive", f"if=none,file={installer_hd.name},id=installer_hd,format=raw",
                 "-device", "virtio-scsi-device",
                 "-device", "scsi-hd,drive=installer_hd",
             ]
         else:
             command += [
-                "-drive", "if=none,file=%s,id=cdrom,media=cdrom" % iso_filename,
+                "-drive", f"if=none,file={iso_filename},id=cdrom,media=cdrom",
                 "-device", "virtio-scsi-device",
                 "-device", "scsi-cd,drive=cdrom",
             ]
     else:
         command += [
             "-accel", "kvm",
-            "-drive", "file=%s" % output_filename,
+            "-drive", f"file={output_filename}",
             "-cdrom", iso_filename,
             "-net", "nic", "-net", "user",
         ]
