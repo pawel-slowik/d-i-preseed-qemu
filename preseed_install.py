@@ -153,7 +153,7 @@ def create_installer_hd(iso_filename: str) -> IO:
     fs_image.truncate(fs_size)
     subprocess.run(["/sbin/mkfs.ext2", fs_image.name], check=True)
     fs_iso_filename = os.path.basename(iso_filename)
-    debugfs_command(fs_image.name, "write %s %s" % (iso_filename, fs_iso_filename))
+    debugfs_command(fs_image.name, f"write {iso_filename} {fs_iso_filename}")
     disk_size = fs_size + header_size
     disk_image = named_tmp(b"")
     disk_image.truncate(disk_size)
@@ -178,7 +178,7 @@ def create_installer_hd(iso_filename: str) -> IO:
 def create_image(filename: str, size: str) -> None:
     """Create a QEMU disk image. Will not overwrite an existing file."""
     if os.path.exists(filename):
-        raise ValueError("already exists: %s" % filename)
+        raise ValueError(f"already exists: {filename}")
     command = ["qemu-img", "create", "-f", "qcow2", filename, size]
     subprocess.run(command, check=True)
 
@@ -188,7 +188,7 @@ def extract_boot_files(image_filename: str) -> None:
 
     Will not overwrite an existing file."""
     if not os.path.exists(image_filename):
-        raise ValueError("file not found: %s" % image_filename)
+        raise ValueError(f"file not found: {image_filename}")
     image_base, _ = os.path.splitext(image_filename)
     kernel_filename = image_base + ".kernel"
     initrd_filename = image_base + ".initrd"
@@ -208,9 +208,9 @@ def image_to_raw(input_filename: str, output_filename: str) -> None:
 
     Will not overwrite an existing file."""
     if not os.path.exists(input_filename):
-        raise ValueError("file not found: %s" % input_filename)
+        raise ValueError(f"file not found: {input_filename}")
     if os.path.exists(output_filename):
-        raise ValueError("already exists: %s" % output_filename)
+        raise ValueError(f"already exists: {output_filename}")
     command = ["qemu-img", "convert", "-O", "raw", input_filename, output_filename]
     subprocess.run(command, check=True)
 
@@ -220,19 +220,19 @@ def extract_boot_partition(image_filename: str, output_filename: str) -> None:
 
     Will not overwrite an existing file. Does not support LVM."""
     if not os.path.exists(image_filename):
-        raise ValueError("file not found: %s" % image_filename)
+        raise ValueError(f"file not found: {image_filename}")
     if os.path.exists(output_filename):
-        raise ValueError("already exists: %s" % output_filename)
+        raise ValueError(f"already exists: {output_filename}")
     for partition in list_partitions(image_filename):
         if partition.type == "Linux" and partition.bootable:
             # use dd for sparse file support
             command = [
                 "dd",
-                "if=%s" % image_filename,
-                "of=%s" % output_filename,
-                "bs=%d" % partition.sector_size,
-                "skip=%d" % partition.start_sector,
-                "count=%d" % partition.size_in_sectors,
+                f"if={image_filename}",
+                f"of={output_filename}",
+                f"bs={partition.sector_size}",
+                f"skip={partition.start_sector}",
+                f"count={partition.size_in_sectors}",
                 "conv=sparse",
             ]
             subprocess.run(command, check=True, stderr=subprocess.DEVNULL)
@@ -245,7 +245,7 @@ def list_partitions(image_filename: str) -> Iterable[Partition]:
 
     Does not support LVM."""
     if not os.path.exists(image_filename):
-        raise ValueError("file not found: %s" % image_filename)
+        raise ValueError(f"file not found: {image_filename}")
     parser = [
         ("Type", r".+", lambda s: s.strip()),
         ("Start", r"[0-9]+", int),
@@ -254,7 +254,7 @@ def list_partitions(image_filename: str) -> Iterable[Partition]:
     ]
     column_spec = ",".join(header for header, _, _ in parser)
     header_regexp = r"\s+".join(header for header, _, _ in parser)
-    data_regexp = r"\s+".join("(?P<%s>%s)" % (header, regexp) for header, regexp, _ in parser)
+    data_regexp = r"\s+".join(f"(?P<{header}>{regexp})" for header, regexp, _ in parser)
     postprocessors = {header: func for header, _, func in parser}
     command = ["/sbin/fdisk", "-l", "-o", column_spec, image_filename]
     process = subprocess.run(command, capture_output=True, text=True, check=True)
@@ -262,8 +262,7 @@ def list_partitions(image_filename: str) -> Iterable[Partition]:
     units = parse_fdisk_units(process.stdout)
     if sector_size != units:
         raise ValueError(
-            "partition table sector size and unit size differ: %d != %d"
-            % (sector_size, units)
+            f"partition table sector size and unit size differ: {sector_size} != {units}"
         )
     in_list = False
     for line in process.stdout.splitlines():
@@ -273,7 +272,7 @@ def list_partitions(image_filename: str) -> Iterable[Partition]:
         if in_list:
             match = re.fullmatch(data_regexp, line)
             if not match:
-                raise ValueError("unable to parse partition line: %s" % line)
+                raise ValueError(f"unable to parse partition line: {line}")
             parsed = {
                 header: postprocessors[header](value)  # type: ignore
                 for header, value in match.groupdict().items()
@@ -320,21 +319,21 @@ def extract_partition_boot_files(
 
     Will not overwrite an existing file."""
     if not os.path.exists(partition_filename):
-        raise ValueError("file not found: %s" % partition_filename)
+        raise ValueError(f"file not found: {partition_filename}")
     if os.path.exists(output_kernel_filename):
-        raise ValueError("already exists: %s" % output_kernel_filename)
+        raise ValueError(f"already exists: {output_kernel_filename}")
     if os.path.exists(output_initrd_filename):
-        raise ValueError("already exists: %s" % output_initrd_filename)
+        raise ValueError(f"already exists: {output_initrd_filename}")
     kernel = parse_symlink_target(debugfs_command(partition_filename, "stat /vmlinuz"))
     initrd = parse_symlink_target(debugfs_command(partition_filename, "stat /initrd.img"))
-    debugfs_command(partition_filename, "dump %s %s" % (kernel, output_kernel_filename))
-    debugfs_command(partition_filename, "dump %s %s" % (initrd, output_initrd_filename))
+    debugfs_command(partition_filename, f"dump {kernel} {output_kernel_filename}")
+    debugfs_command(partition_filename, f"dump {initrd} {output_initrd_filename}")
 
 
 def debugfs_command(partition_filename: str, command: str) -> str:
     """Run a debugfs command."""
     if not os.path.exists(partition_filename):
-        raise ValueError("file not found: %s" % partition_filename)
+        raise ValueError(f"file not found: {partition_filename}")
     cmd = ["/sbin/debugfs", "-w", "-f", "-", partition_filename]
     process = subprocess.Popen(
         cmd,
