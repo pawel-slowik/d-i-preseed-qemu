@@ -12,13 +12,13 @@ import shlex
 import argparse
 from typing import Tuple, NamedTuple, Iterable, IO, Optional
 
-Partition = NamedTuple("Partition", [
-    ("type", str),
-    ("sector_size", int),
-    ("start_sector", int),
-    ("size_in_sectors", int),
-    ("bootable", bool),
-])
+
+class Partition(NamedTuple):
+    type: str
+    sector_size: int
+    start_sector: int
+    size_in_sectors: int
+    bootable: bool
 
 
 def install(
