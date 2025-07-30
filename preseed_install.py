@@ -160,16 +160,16 @@ def create_installer_hd(iso_filename: str) -> IO:
     disk_image.truncate(disk_size)
     sfdisk_script = "label: dos\n,,L\nwrite\n"
     sfdisk_cmd = ["/sbin/sfdisk", disk_image.name]
-    process = subprocess.Popen(
+    with subprocess.Popen(
         sfdisk_cmd,
         universal_newlines=True,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-    )
-    stdout, stderr = process.communicate(sfdisk_script)
-    if process.returncode != 0:
-        raise subprocess.CalledProcessError(process.returncode, sfdisk_cmd, stdout, stderr)
+    ) as process:
+        stdout, stderr = process.communicate(sfdisk_script)
+        if process.returncode != 0:
+            raise subprocess.CalledProcessError(process.returncode, sfdisk_cmd, stdout, stderr)
     fs_image.seek(0)
     disk_image.seek(header_size)
     shutil.copyfileobj(fs_image, disk_image)
@@ -336,16 +336,16 @@ def debugfs_command(partition_filename: str, command: str) -> str:
     if not os.path.exists(partition_filename):
         raise ValueError(f"file not found: {partition_filename}")
     cmd = ["/sbin/debugfs", "-w", "-f", "-", partition_filename]
-    process = subprocess.Popen(
+    with subprocess.Popen(
         cmd,
         universal_newlines=True,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-    )
-    stdout, stderr = process.communicate(command)
-    if process.returncode != 0:
-        raise subprocess.CalledProcessError(process.returncode, cmd, stdout, stderr)
+    ) as process:
+        stdout, stderr = process.communicate(command)
+        if process.returncode != 0:
+            raise subprocess.CalledProcessError(process.returncode, cmd, stdout, stderr)
     return stdout
 
 
