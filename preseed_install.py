@@ -102,6 +102,7 @@ def iso_get_boot_filenames(iso_filename: str) -> Tuple[str, str]:
         (10, "armhf"): ("/install.ahf/cdrom/vmlinuz", "/install.ahf/cdrom/initrd.gz"),
         (11, "amd64"): ("/install.amd/vmlinuz", "/install.amd/initrd.gz"),
         (12, "amd64"): ("/install.amd/vmlinuz", "/install.amd/initrd.gz"),
+        (13, "amd64"): ("/install.amd/vmlinuz", "/install.amd/initrd.gz"),
     }
     version = get_debian_version(iso_filename)
     arch = get_debian_architecture(iso_filename)
